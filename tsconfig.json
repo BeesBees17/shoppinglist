@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "jsx": "react-native",
+    "target": "es2017",
+    "module": "esnext",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "types": ["jest", "react", "react-native"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src", "App.tsx", "tests"],
+  "exclude": ["node_modules"]
+}
