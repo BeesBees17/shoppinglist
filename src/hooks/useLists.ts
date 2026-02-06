@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { listRepository } from "../repositories/listRepository";
-import { ListRecord } from "../utils/types";
+import { ShoppingList } from "../utils/types";
 
 export const useLists = (isArchived: boolean) => {
-  const [lists, setLists] = useState<ListRecord[]>([]);
+  const [lists, setLists] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {

@@ -45,7 +45,8 @@ export const ArchivedListsScreen = ({ navigation }: Props) => {
             return (
               <ListCard
                 key={list.id}
-                title={list.shopName}
+                title={list.name}
+                subtitle={list.store?.name ?? "No store selected"}
                 updatedLabel={formatRelativeTime(list.updatedAt)}
                 checked={count.checked}
                 total={count.total}

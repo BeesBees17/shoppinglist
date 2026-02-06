@@ -1,17 +1,26 @@
-export type ListRecord = {
+export type StoreRef = {
   id: string;
-  shopName: string;
+  name: string;
+};
+
+export type ShoppingList = {
+  id: string;
+  name: string;
+  store: StoreRef | null;
   createdAt: number;
   updatedAt: number;
   isArchived: boolean;
+  isActive: boolean;
 };
 
-export type ItemRecord = {
+export type ShoppingItem = {
   id: string;
   listId: string;
-  name: string;
+  text: string;
   quantity: string | null;
   note: string | null;
+  isRecommended: boolean;
+  isSuggested: boolean;
   isChecked: boolean;
   position: number;
   createdAt: number;

@@ -3,6 +3,8 @@ import { theme } from "../design/theme";
 
 type Props = {
   title: string;
+  subtitle?: string;
+  isActive?: boolean;
   updatedLabel: string;
   checked: number;
   total: number;
@@ -10,7 +12,16 @@ type Props = {
   onLongPress?: () => void;
 };
 
-export const ListCard = ({ title, updatedLabel, checked, total, onPress, onLongPress }: Props) => {
+export const ListCard = ({
+  title,
+  subtitle,
+  isActive = false,
+  updatedLabel,
+  checked,
+  total,
+  onPress,
+  onLongPress,
+}: Props) => {
   const progress = total === 0 ? 0 : Math.round((checked / total) * 100);
   return (
     <Pressable
@@ -23,6 +34,12 @@ export const ListCard = ({ title, updatedLabel, checked, total, onPress, onLongP
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.progress}>{`${checked}/${total}`}</Text>
       </View>
+      {(subtitle || isActive) && (
+        <View style={styles.metaRow}>
+          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          {isActive && <Text style={styles.activeBadge}>Active</Text>}
+        </View>
+      )}
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress}%` }]} />
       </View>
@@ -54,6 +71,21 @@ const styles = StyleSheet.create({
   progress: {
     ...theme.typography.caption,
     color: theme.colors.textSecondary,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: theme.spacing.xs,
+  },
+  subtitle: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+  },
+  activeBadge: {
+    ...theme.typography.caption,
+    color: theme.colors.primary,
+    fontWeight: "600",
   },
   progressTrack: {
     height: 6,

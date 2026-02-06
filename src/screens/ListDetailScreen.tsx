@@ -15,8 +15,8 @@ import { theme } from "../design/theme";
 import { listRepository } from "../repositories/listRepository";
 import { itemRepository } from "../repositories/itemRepository";
 import { useListItems } from "../hooks/useListItems";
-import { ItemRecord, ListRecord } from "../utils/types";
-import { calculateProgress, createItemRecord, sortItemsForDisplay, toggleItemChecked } from "../utils/listState";
+import { ShoppingItem, ShoppingList, StoreRef } from "../utils/types";
+import { calculateProgress, createItemRecord, createStoreRef, sortItemsForDisplay, toggleItemChecked } from "../utils/listState";
 import { ItemInputBar } from "../components/ItemInputBar";
 
 const createUndoTimeout = (callback: () => void) => setTimeout(callback, 4000);
@@ -26,14 +26,15 @@ type Props = NativeStackScreenProps<RootStackParamList, "ListDetail">;
 export const ListDetailScreen = ({ route, navigation }: Props) => {
   const { listId } = route.params;
   const { items, setItems, reload } = useListItems(listId);
-  const [list, setList] = useState<ListRecord | null>(null);
+  const [list, setList] = useState<ShoppingList | null>(null);
   const [showChecked, setShowChecked] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [lastToggled, setLastToggled] = useState<ItemRecord | null>(null);
+  const [lastToggled, setLastToggled] = useState<ShoppingItem | null>(null);
   const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [lastDeleted, setLastDeleted] = useState<ItemRecord | null>(null);
+  const [lastDeleted, setLastDeleted] = useState<ShoppingItem | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [storeInput, setStoreInput] = useState("");
 
   useEffect(() => {
     listRepository.getById(listId).then(setList);
@@ -41,8 +42,17 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
 
   useEffect(() => {
     if (list) {
-      setNameInput(list.shopName);
+      setNameInput(list.name);
+      setStoreInput(list.store?.name ?? "");
     }
+  }, [list]);
+
+  useEffect(() => {
+    if (!list || list.isArchived || list.isActive) {
+      return;
+    }
+    const updated = { ...list, isActive: true, updatedAt: Date.now() };
+    listRepository.update(updated).then(() => setList(updated));
   }, [list]);
 
   const displayItems = useMemo(() => {
@@ -52,7 +62,7 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
 
   const progress = calculateProgress(items);
 
-  const handleToggleItem = async (item: ItemRecord) => {
+  const handleToggleItem = async (item: ShoppingItem) => {
     Haptics.selectionAsync();
     const updated = toggleItemChecked(item);
     setItems((prev) => prev.map((entry) => (entry.id === item.id ? updated : entry)));
@@ -81,8 +91,8 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
     await reload();
   };
 
-  const handleDeleteItem = (item: ItemRecord) => {
-    Alert.alert("Remove item", `Delete ${item.name}?`, [
+  const handleDeleteItem = (item: ShoppingItem) => {
+    Alert.alert("Remove item", `Delete ${item.text}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -103,14 +113,19 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
     setLastDeleted(null);
   };
 
-  const renderItem = ({ item }: { item: ItemRecord }) => (
+  const renderItem = ({ item }: { item: ShoppingItem }) => (
     <Pressable
       style={[styles.itemRow, item.isChecked && styles.checkedItem]}
       onPress={() => handleToggleItem(item)}
       onLongPress={() => handleDeleteItem(item)}
       accessibilityRole="button"
     >
-      <Text style={[styles.itemText, item.isChecked && styles.checkedText]}>{item.name}</Text>
+      <View style={styles.itemTextRow}>
+        <Text style={[styles.itemText, item.isChecked && styles.checkedText]}>{item.text}</Text>
+        {(item.isRecommended || item.isSuggested) && (
+          <Text style={styles.recoBadge}>{item.isRecommended ? "Recommended" : "Suggested"}</Text>
+        )}
+      </View>
     </Pressable>
   );
 
@@ -118,14 +133,26 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
     <View style={styles.container}>
       <View style={styles.header}>
         {isEditingName ? (
-          <TextInput
-            value={nameInput}
-            onChangeText={setNameInput}
-            style={styles.nameInput}
-            accessibilityLabel="Edit shop name"
-          />
+          <View style={styles.editInputs}>
+            <TextInput
+              value={nameInput}
+              onChangeText={setNameInput}
+              style={styles.nameInput}
+              accessibilityLabel="Edit list name"
+            />
+            <TextInput
+              value={storeInput}
+              onChangeText={setStoreInput}
+              style={styles.nameInput}
+              placeholder="Store (optional)"
+              accessibilityLabel="Edit store"
+            />
+          </View>
         ) : (
-          <Text style={styles.title}>{list?.shopName ?? "List"}</Text>
+          <View>
+            <Text style={styles.title}>{list?.name ?? "List"}</Text>
+            <Text style={styles.subtitle}>{list?.store?.name ?? "No store selected"}</Text>
+          </View>
         )}
         <Pressable
           style={styles.toggleButton}
@@ -141,14 +168,35 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
           onPress={() => setIsEditingName((prev) => !prev)}
           accessibilityRole="button"
         >
-          <Text style={styles.secondaryText}>{isEditingName ? "Cancel" : "Edit name"}</Text>
+          <Text style={styles.secondaryText}>{isEditingName ? "Cancel" : "Edit details"}</Text>
         </Pressable>
+        {list && (
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={async () => {
+              const updated = { ...list, isActive: !list.isActive, updatedAt: Date.now() };
+              await listRepository.update(updated);
+              setList(updated);
+            }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>{list.isActive ? "Remove active" : "Keep active"}</Text>
+          </Pressable>
+        )}
         {isEditingName && (
           <Pressable
             style={styles.secondaryButton}
             onPress={async () => {
               if (!list) return;
-              const updated = { ...list, shopName: nameInput.trim(), updatedAt: Date.now() };
+              const trimmedName = nameInput.trim();
+              const trimmedStore = storeInput.trim();
+              const store: StoreRef | null = trimmedStore ? createStoreRef(trimmedStore) : null;
+              const updated = {
+                ...list,
+                name: trimmedName || list.name,
+                store,
+                updatedAt: Date.now(),
+              };
               await listRepository.update(updated);
               setList(updated);
               setIsEditingName(false);
@@ -190,7 +238,7 @@ export const ListDetailScreen = ({ route, navigation }: Props) => {
         style={styles.archiveButton}
         onPress={async () => {
           if (!list) return;
-          const updated = { ...list, isArchived: true, updatedAt: Date.now() };
+          const updated = { ...list, isArchived: true, isActive: false, updatedAt: Date.now() };
           await listRepository.update(updated);
           navigation.goBack();
         }}
@@ -217,6 +265,11 @@ const styles = StyleSheet.create({
   title: {
     ...theme.typography.title,
     color: theme.colors.textPrimary,
+  },
+  subtitle: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
   },
   toggleButton: {
     backgroundColor: theme.colors.chip,
@@ -248,11 +301,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   nameInput: {
-    flex: 1,
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.sm,
     borderRadius: 12,
+    width: "100%",
     ...theme.typography.subtitle,
+  },
+  editInputs: {
+    flex: 1,
+    gap: theme.spacing.xs,
   },
   listContent: {
     paddingBottom: theme.spacing.lg,
@@ -263,12 +320,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: theme.spacing.sm,
   },
+  itemTextRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   checkedItem: {
     backgroundColor: theme.colors.muted,
   },
   itemText: {
     ...theme.typography.body,
     color: theme.colors.textPrimary,
+  },
+  recoBadge: {
+    ...theme.typography.caption,
+    color: theme.colors.primary,
+    fontWeight: "600",
   },
   checkedText: {
     textDecorationLine: "line-through",

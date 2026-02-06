@@ -14,38 +14,39 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { theme } from "../design/theme";
 import { ItemInputBar } from "../components/ItemInputBar";
 import { Chip } from "../components/Chip";
-import { createItemRecord, createListRecord } from "../utils/listState";
+import { createItemRecord, createListRecord, createStoreRef } from "../utils/listState";
 import { listRepository } from "../repositories/listRepository";
 import { itemRepository } from "../repositories/itemRepository";
 import { getSuggestions } from "../ai/suggestions";
 import { features } from "../config/features";
-import { ItemRecord } from "../utils/types";
+import { ShoppingItem, StoreRef } from "../utils/types";
 
 const quickSuggestions = ["Milk", "Eggs", "Bread"];
-const recentShops = ["Trader Joe's", "Whole Foods", "Target"];
+const recentStores = ["Trader Joe's", "Whole Foods", "Target"];
 
 type Props = NativeStackScreenProps<RootStackParamList, "NewList">;
 
 export const NewListScreen = ({ navigation }: Props) => {
-  const [shopName, setShopName] = useState("");
-  const [step, setStep] = useState<"shop" | "items">("shop");
-  const [items, setItems] = useState<ItemRecord[]>([]);
+  const [listName, setListName] = useState("");
+  const [storeName, setStoreName] = useState("");
+  const [step, setStep] = useState<"details" | "items">("details");
+  const [items, setItems] = useState<ShoppingItem[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [suggestedAdds, setSuggestedAdds] = useState<string[]>([]);
-  const listRef = useRef<FlatList<ItemRecord>>(null);
+  const listRef = useRef<FlatList<ShoppingItem>>(null);
 
   useEffect(() => {
     if (features.suggestionsEnabled && items.length >= 3) {
-      getSuggestions(items.map((item) => item.name), shopName).then(setSuggestedAdds);
+      getSuggestions(items.map((item) => item.text), storeName || listName).then(setSuggestedAdds);
     } else {
       setSuggestedAdds([]);
     }
-  }, [items, shopName]);
+  }, [items, storeName, listName]);
 
   const handleAddItem = (name: string) => {
     if (!name.trim()) return;
     const normalized = name.trim().toLowerCase();
-    const duplicate = items.find((item) => item.name.toLowerCase() === normalized);
+    const duplicate = items.find((item) => item.text.toLowerCase() === normalized);
     const add = () => {
       Haptics.selectionAsync();
       const next = createItemRecord("draft", name.trim(), items.length + 1);
@@ -65,7 +66,11 @@ export const NewListScreen = ({ navigation }: Props) => {
     add();
   };
 
-  const canContinue = shopName.trim().length > 0;
+  const canContinue = listName.trim().length > 0;
+
+  const resolvedStore: StoreRef | null = storeName.trim()
+    ? createStoreRef(storeName)
+    : null;
 
   const handleSave = async () => {
     if (items.length === 0) {
@@ -74,7 +79,7 @@ export const NewListScreen = ({ navigation }: Props) => {
         {
           text: "Save empty list",
           onPress: async () => {
-            const list = createListRecord(shopName.trim());
+            const list = createListRecord(listName.trim(), resolvedStore);
             await listRepository.create(list);
             navigation.navigate("Home");
           },
@@ -83,7 +88,7 @@ export const NewListScreen = ({ navigation }: Props) => {
       return;
     }
 
-    const list = createListRecord(shopName.trim());
+    const list = createListRecord(listName.trim(), resolvedStore);
     await listRepository.create(list);
     await Promise.all(
       items.map((item, index) =>
@@ -98,9 +103,12 @@ export const NewListScreen = ({ navigation }: Props) => {
     navigation.navigate("Home");
   };
 
-  const renderItem = ({ item }: { item: ItemRecord }) => (
+  const renderItem = ({ item }: { item: ShoppingItem }) => (
     <View style={styles.itemRow}>
-      <Text style={styles.itemText}>{item.name}</Text>
+      <Text style={styles.itemText}>
+        {item.text}
+        {item.isRecommended ? " ★" : item.isSuggested ? " •" : ""}
+      </Text>
     </View>
   );
 
@@ -113,21 +121,29 @@ export const NewListScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      {step === "shop" ? (
+      {step === "details" ? (
         <View style={styles.stepContainer}>
-          <Text style={styles.title}>Name the shop</Text>
+          <Text style={styles.title}>Name your list</Text>
           <TextInput
-            value={shopName}
-            onChangeText={setShopName}
-            placeholder="e.g. Trader Joe's"
+            value={listName}
+            onChangeText={setListName}
+            placeholder="e.g. Weekly staples"
             style={styles.input}
             autoFocus
-            accessibilityLabel="Shop name"
+            accessibilityLabel="List name"
           />
-          <Text style={styles.sectionLabel}>Recent</Text>
+          <Text style={styles.sectionLabel}>Store (optional)</Text>
+          <TextInput
+            value={storeName}
+            onChangeText={setStoreName}
+            placeholder="Select a store"
+            style={styles.input}
+            accessibilityLabel="Store selection"
+          />
+          <Text style={styles.sectionLabel}>Recent stores</Text>
           <View style={styles.chipRow}>
-            {recentShops.map((shop) => (
-              <Chip key={shop} label={shop} onPress={() => setShopName(shop)} />
+            {recentStores.map((store) => (
+              <Chip key={store} label={store} onPress={() => setStoreName(store)} />
             ))}
           </View>
           <Pressable
@@ -141,7 +157,7 @@ export const NewListScreen = ({ navigation }: Props) => {
         </View>
       ) : (
         <View style={styles.stepContainer}>
-          <Text style={styles.title}>{shopName || "New list"}</Text>
+          <Text style={styles.title}>{listName || "New list"}</Text>
           <FlatList
             ref={listRef}
             data={items}
@@ -156,7 +172,18 @@ export const NewListScreen = ({ navigation }: Props) => {
                 </Text>
                 <View style={styles.chipRow}>
                   {suggestedChips.map((suggestion) => (
-                    <Chip key={suggestion} label={suggestion} onPress={() => handleAddItem(suggestion)} />
+                    <Chip
+                      key={suggestion}
+                      label={suggestion}
+                      onPress={() =>
+                        setItems((prev) => [
+                          ...prev,
+                          createItemRecord("draft", suggestion, prev.length + 1, Date.now(), {
+                            isSuggested: true,
+                          }),
+                        ])
+                      }
+                    />
                   ))}
                 </View>
               </View>
@@ -168,7 +195,18 @@ export const NewListScreen = ({ navigation }: Props) => {
                 <Text style={styles.sectionLabel}>Suggested additions</Text>
                 <View style={styles.chipRow}>
                   {suggestedAdds.map((suggestion) => (
-                    <Chip key={suggestion} label={suggestion} onPress={() => handleAddItem(suggestion)} />
+                    <Chip
+                      key={suggestion}
+                      label={suggestion}
+                      onPress={() =>
+                        setItems((prev) => [
+                          ...prev,
+                          createItemRecord("draft", suggestion, prev.length + 1, Date.now(), {
+                            isRecommended: true,
+                          }),
+                        ])
+                      }
+                    />
                   ))}
                 </View>
               </>
