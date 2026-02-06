@@ -1,12 +1,14 @@
 import { executeSql } from "../db/queries";
-import { ItemRecord } from "../utils/types";
+import { ShoppingItem } from "../utils/types";
 
-const mapRow = (row: any): ItemRecord => ({
+const mapRow = (row: any): ShoppingItem => ({
   id: row.id,
   listId: row.listId,
-  name: row.name,
+  text: row.name,
   quantity: row.quantity ?? null,
   note: row.note ?? null,
+  isRecommended: row.isRecommended === 1,
+  isSuggested: row.isSuggested === 1,
   isChecked: row.isChecked === 1,
   position: row.position,
   createdAt: row.createdAt,
@@ -15,7 +17,7 @@ const mapRow = (row: any): ItemRecord => ({
 });
 
 export const itemRepository = {
-  async getByListId(listId: string): Promise<ItemRecord[]> {
+  async getByListId(listId: string): Promise<ShoppingItem[]> {
     const result = await executeSql(
       "SELECT * FROM items WHERE listId = ? ORDER BY position ASC",
       [listId]
@@ -34,16 +36,18 @@ export const itemRepository = {
     return { total: row.total ?? 0, checked: row.checked ?? 0 };
   },
 
-  async create(item: ItemRecord): Promise<void> {
+  async create(item: ShoppingItem): Promise<void> {
     await executeSql(
-      `INSERT INTO items (id, listId, name, quantity, note, isChecked, position, createdAt, updatedAt, checkedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO items (id, listId, name, quantity, note, isRecommended, isSuggested, isChecked, position, createdAt, updatedAt, checkedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id,
         item.listId,
-        item.name,
+        item.text,
         item.quantity,
         item.note,
+        item.isRecommended ? 1 : 0,
+        item.isSuggested ? 1 : 0,
         item.isChecked ? 1 : 0,
         item.position,
         item.createdAt,
@@ -53,15 +57,17 @@ export const itemRepository = {
     );
   },
 
-  async update(item: ItemRecord): Promise<void> {
+  async update(item: ShoppingItem): Promise<void> {
     await executeSql(
       `UPDATE items
-       SET name = ?, quantity = ?, note = ?, isChecked = ?, position = ?, updatedAt = ?, checkedAt = ?
+       SET name = ?, quantity = ?, note = ?, isRecommended = ?, isSuggested = ?, isChecked = ?, position = ?, updatedAt = ?, checkedAt = ?
        WHERE id = ?`,
       [
-        item.name,
+        item.text,
         item.quantity,
         item.note,
+        item.isRecommended ? 1 : 0,
+        item.isSuggested ? 1 : 0,
         item.isChecked ? 1 : 0,
         item.position,
         item.updatedAt,

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { itemRepository } from "../repositories/itemRepository";
-import { ItemRecord } from "../utils/types";
+import { ShoppingItem } from "../utils/types";
 
 export const useListItems = (listId: string) => {
-  const [items, setItems] = useState<ItemRecord[]>([]);
+  const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {

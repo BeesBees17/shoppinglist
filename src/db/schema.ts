@@ -2,9 +2,12 @@ export const schema = [
   `CREATE TABLE IF NOT EXISTS lists (
     id TEXT PRIMARY KEY NOT NULL,
     shopName TEXT NOT NULL,
+    storeId TEXT,
+    storeName TEXT,
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL,
-    isArchived INTEGER NOT NULL
+    isArchived INTEGER NOT NULL,
+    isActive INTEGER NOT NULL
   );`,
   `CREATE TABLE IF NOT EXISTS items (
     id TEXT PRIMARY KEY NOT NULL,
@@ -12,6 +15,8 @@ export const schema = [
     name TEXT NOT NULL,
     quantity TEXT,
     note TEXT,
+    isRecommended INTEGER NOT NULL,
+    isSuggested INTEGER NOT NULL,
     isChecked INTEGER NOT NULL,
     position INTEGER NOT NULL,
     createdAt INTEGER NOT NULL,

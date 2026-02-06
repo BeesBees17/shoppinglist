@@ -10,14 +10,14 @@ import { useLists } from "../hooks/useLists";
 import { itemRepository } from "../repositories/itemRepository";
 import { listRepository } from "../repositories/listRepository";
 import { formatRelativeTime } from "../utils/time";
-import { ItemRecord, ListRecord } from "../utils/types";
+import { ShoppingItem, ShoppingList } from "../utils/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 type CountMap = Record<string, { total: number; checked: number }>;
 type UndoState =
-  | { type: "archive"; list: ListRecord }
-  | { type: "delete"; list: ListRecord; items: ItemRecord[] }
+  | { type: "archive"; list: ShoppingList }
+  | { type: "delete"; list: ShoppingList; items: ShoppingItem[] }
   | null;
 
 export const HomeScreen = ({ navigation }: Props) => {
@@ -41,17 +41,18 @@ export const HomeScreen = ({ navigation }: Props) => {
   }, [lists]);
 
   const filteredLists = lists.filter((list) =>
-    list.shopName.toLowerCase().includes(query.trim().toLowerCase())
+    list.name.toLowerCase().includes(query.trim().toLowerCase())
   );
+  const activeLists = lists.filter((list) => list.isActive);
 
-  const handleArchive = async (list: ListRecord) => {
-    const updated = { ...list, isArchived: true, updatedAt: Date.now() };
+  const handleArchive = async (list: ShoppingList) => {
+    const updated = { ...list, isArchived: true, isActive: false, updatedAt: Date.now() };
     await listRepository.update(updated);
     setUndoState({ type: "archive", list });
     await reload();
   };
 
-  const handleDelete = async (list: ListRecord) => {
+  const handleDelete = async (list: ShoppingList) => {
     const items = await itemRepository.getByListId(list.id);
     await itemRepository.deleteByListId(list.id);
     await listRepository.delete(list.id);
@@ -85,6 +86,22 @@ export const HomeScreen = ({ navigation }: Props) => {
           <Text style={styles.primaryButtonText}>New list</Text>
         </Pressable>
       </View>
+
+      {!showArchived && activeLists.length > 0 && (
+        <View style={styles.activeSection}>
+          <Text style={styles.sectionTitle}>Active lists</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {activeLists.map((list) => (
+              <Chip
+                key={list.id}
+                label={list.store?.name ? `${list.name} • ${list.store.name}` : list.name}
+                onPress={() => navigation.navigate("ListDetail", { listId: list.id })}
+                isActive
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <TextInput
         style={styles.search}
@@ -122,7 +139,9 @@ export const HomeScreen = ({ navigation }: Props) => {
             return (
               <ListCard
                 key={list.id}
-                title={list.shopName}
+                title={list.name}
+                subtitle={list.store?.name ?? "No store selected"}
+                isActive={list.isActive}
                 updatedLabel={formatRelativeTime(list.updatedAt)}
                 checked={count.checked}
                 total={count.total}
@@ -183,6 +202,14 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
     borderRadius: 12,
     marginBottom: theme.spacing.md,
+  },
+  activeSection: {
+    marginBottom: theme.spacing.md,
+  },
+  sectionTitle: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
   },
   chipRow: {
     flexDirection: "row",
