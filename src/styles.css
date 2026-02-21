@@ -1,0 +1,12 @@
+:root { font-family: Inter, system-ui, Arial; }
+body { margin: 0; background: #f6f5f2; }
+.container { max-width: 900px; margin: 0 auto; padding: 16px; }
+.card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input, button { padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; }
+button { cursor: pointer; }
+.primary { background: #2563eb; color: white; border: none; }
+.success { background: #22c55e; color: white; border: none; }
+.danger { color: #ef4444; border-color: #ef4444; background: white; }
+.muted { color: #666; font-size: 13px; }
+.banner { background: #e0e7ff; padding: 10px; border-radius: 10px; margin: 10px 0; }

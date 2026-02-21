@@ -1,4 +1,4 @@
 export const features = {
   suggestionsEnabled: true,
-  voiceInputEnabled: false,
+  networkSuggestionsEnabled: false,
 };
