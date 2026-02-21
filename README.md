@@ -1,30 +1,39 @@
-# Shopping List (Expo + React Native)
+# Shopping List (Web, Vite + React)
 
-A fast, offline-first shopping list app focused on one-handed use in the aisle. Lists are stored locally in SQLite and the UI is built for speed.
+This project was fully redone to run as a **browser-first web app** (no Expo, no emulator required).
 
-## Setup
+## Run locally on Windows (no Expo)
 
-```bash
-npm install
-npm run start
+1. Install **Node.js 20+**.
+2. Open PowerShell in the project folder.
+3. Install dependencies:
+   ```powershell
+   npm install
+   ```
+4. Start dev server:
+   ```powershell
+   npm run dev
+   ```
+5. Open the URL shown in terminal (typically `http://localhost:5173`).
+
+## Build for production
+
+```powershell
+npm run build
+npm run preview
 ```
 
-## Architecture
+## What this app includes
 
-- `src/db/` initializes SQLite and provides a small query helper.
-- `src/repositories/` exposes CRUD operations for lists and items (repository pattern).
-- `src/hooks/` contains data loading hooks for screens.
-- `src/design/` holds the theme (spacing, typography, colors).
-- `src/ai/` is a future-facing module for suggestions (MVP returns deterministic values).
-
-## AI suggestions
-
-The placeholder module in `src/ai/suggestions.ts` returns deterministic suggestions without any network calls. Swap the implementation of `getSuggestions` to plug in real AI later.
+- Shopping list + item CRUD.
+- Archive/unarchive list workflows.
+- Undo for archive/delete/check-all/item-delete actions.
+- Loading/empty/validation states.
+- Deterministic suggestion fallback plus optional network suggestions via feature flag.
+- Local persistence with schema migration support in browser `localStorage`.
 
 ## Tests
 
-```bash
+```powershell
 npm run test
 ```
-
-Tests cover core list logic and a lightweight integration flow for adding/checking items.
